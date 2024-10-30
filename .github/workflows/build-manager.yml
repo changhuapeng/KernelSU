@@ -2,25 +2,21 @@ name: Build Manager
 
 on:
   push:
-    branches: [ "main", "ci" ]
+    branches: [ "legacy", "ci" ]
     paths:
       - '.github/workflows/build-manager.yml'
       - 'manager/**'
       - 'kernel/**'
       - 'userspace/ksud/**'
   pull_request:
-    branches: [ "main" ]
+    branches: [ "legacy" ]
     paths:
       - 'manager/**'
   workflow_call:
+  workflow_dispatch:
 
 jobs:
-  build-lkm:
-    uses: ./.github/workflows/build-lkm.yml
-    secrets: inherit
-
   build-ksud:
-    needs: build-lkm
     strategy:
       matrix:
         include:
@@ -28,20 +24,11 @@ jobs:
             os: ubuntu-latest
           - target: x86_64-linux-android
             os: ubuntu-latest
-          - target: x86_64-pc-windows-gnu # windows pc
-            os: ubuntu-latest
-          - target: x86_64-apple-darwin # Intel mac
-            os: macos-latest
-          - target: aarch64-apple-darwin # M chip mac
-            os: macos-latest
-          - target: aarch64-unknown-linux-musl # arm64 Linux
-            os: ubuntu-latest
-          - target: x86_64-unknown-linux-musl # x86 Linux
-            os: ubuntu-latest
     uses: ./.github/workflows/ksud.yml
     with:
       target: ${{ matrix.target }}
       os: ${{ matrix.os }}
+      pack_lkm: false
 
   build-manager:
     needs: build-ksud
@@ -66,7 +53,7 @@ jobs:
           fi
 
       - name: Write key
-        if: ${{ ( github.event_name != 'pull_request' && github.ref == 'refs/heads/main' ) || github.ref_type == 'tag' }}
+        if: ${{ ( github.event_name != 'pull_request' && github.ref == 'refs/heads/legacy' ) || github.ref_type == 'tag' }}
         run: |
           if [ ! -z "${{ secrets.KEYSTORE }}" ]; then
             {
@@ -122,14 +109,14 @@ jobs:
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
-        if: ${{ ( github.event_name != 'pull_request' && github.ref == 'refs/heads/main' ) || github.ref_type == 'tag' }}
+        if: ${{ ( github.event_name != 'pull_request' && github.ref == 'refs/heads/legacy' ) || github.ref_type == 'tag' }}
         with:
           name: manager
           path: manager/app/build/outputs/apk/release/*.apk
 
       - name: Upload mappings
         uses: actions/upload-artifact@v4
-        if: ${{ ( github.event_name != 'pull_request' && github.ref == 'refs/heads/main' ) || github.ref_type == 'tag' }}
+        if: ${{ ( github.event_name != 'pull_request' && github.ref == 'refs/heads/legacy' ) || github.ref_type == 'tag' }}
         with:
           name: "mappings"
           path: "manager/app/build/outputs/mapping/release/"
