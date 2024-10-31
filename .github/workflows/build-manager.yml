@@ -16,7 +16,55 @@ on:
   workflow_dispatch:
 
 jobs:
+  update-version:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          path: upstream
+
+      - name: Obtain upstream version
+        id: upstream
+        run: |
+          cd $GITHUB_WORKSPACE/upstream
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --all
+          git checkout upstream
+
+          UPSTREAM_VALUE=$(sed -nE 's/return major \* 10000 \+ commitCount \+ ([[:digit:]]+)/\1/p' manager/build.gradle.kts)
+          echo "UPSTREAM_VALUE=$UPSTREAM_VALUE" >> $GITHUB_OUTPUT
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          path: legacy
+
+      - name: Update legacy version
+        env:
+          UPSTREAM_VALUE: ${{ steps.upstream.outputs.UPSTREAM_VALUE }}
+        run: |
+          cd $GITHUB_WORKSPACE/legacy
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --all
+
+          VALUE_AFTER_OFFSET=$((UPSTREAM_VALUE - 1 - $(git rev-list --count origin/upstream..origin/legacy)))
+
+          sed -i -E 's/(return major \* 10000 \+ commitCount \+ )[[:digit:]]+/\1'$VALUE_AFTER_OFFSET'/i' manager/build.gradle.kts
+          sed -i -E 's/(\$\(shell expr 10000 \+ \$\(KSU_GIT_VERSION\) \+ )[[:digit:]]+/\1'$VALUE_AFTER_OFFSET'/i' kernel/Makefile
+          sed -i -E 's/(\= 10000 \+ )[[:digit:]]+( \+ version_code)/\1'$VALUE_AFTER_OFFSET'\2/i' userspace/ksud/build.rs
+
+          git add .
+          git commit -m "Offset build version by $((UPSTREAM_VALUE - VALUE_AFTER_OFFSET)) to match upstream version"
+          git push origin legacy
+
   build-ksud:
+    needs: update-version
     strategy:
       matrix:
         include:
@@ -42,6 +90,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: legacy
 
       - name: Setup need_upload
         id: need_upload
