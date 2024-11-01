@@ -408,10 +408,17 @@ private fun InfoCard() {
             val uname = Os.uname()
 
             @Composable
-            fun InfoCardItem(label: String, content: String) {
-                contents.appendLine(label).appendLine(content).appendLine()
+            fun InfoCardItem(label: String, content: String, extraInfo: String? = null) {
+                contents.appendLine(label).appendLine(content)
+                extraInfo?.let {
+                    contents.appendLine(it)
+                }
+                contents.appendLine()
                 Text(text = label, style = MaterialTheme.typography.bodyLarge)
                 Text(text = content, style = MaterialTheme.typography.bodyMedium)
+                extraInfo?.let {
+                    Text(text = it, style = MaterialTheme.typography.bodySmall)
+                }
             }
 
             InfoCardItem(stringResource(R.string.home_kernel), uname.release)
@@ -420,7 +427,8 @@ private fun InfoCard() {
             val managerVersion = getManagerVersion(context)
             InfoCardItem(
                 stringResource(R.string.home_manager_version),
-                "${managerVersion.first} (${managerVersion.second})"
+                "${managerVersion.first} (${managerVersion.second})",
+                stringResource(R.string.home_manager_version_unofficial)
             )
 
             Spacer(Modifier.height(16.dp))
