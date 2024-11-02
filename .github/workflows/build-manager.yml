@@ -57,8 +57,55 @@ jobs:
               git push origin $GITHUB_REF_NAME
           fi
 
-  build-ksud:
+  update-version:
     needs: update-signature
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout upstream
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: upstream
+          path: upstream
+
+      - name: Obtain upstream version
+        id: upstream
+        run: |
+          cd $GITHUB_WORKSPACE/upstream
+          git fetch --all
+
+          UPSTREAM_VALUE=$(sed -nE 's/return major \* 10000 \+ commitCount \+ ([[:digit:]]+)/\1/p' manager/build.gradle.kts)
+          echo "UPSTREAM_VALUE=$UPSTREAM_VALUE" >> $GITHUB_OUTPUT
+
+      - name: Checkout current branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref_name }}
+          path: ${{ github.ref_name }}
+
+      - name: Update current version
+        env:
+          UPSTREAM_VALUE: ${{ steps.upstream.outputs.UPSTREAM_VALUE }}
+        run: |
+          cd $GITHUB_WORKSPACE/$GITHUB_REF_NAME
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --all
+
+          VALUE_AFTER_OFFSET=$((UPSTREAM_VALUE - 1 - $(git rev-list --count origin/upstream..origin/$GITHUB_REF_NAME)))
+
+          sed -i -E 's/(return major \* 10000 \+ commitCount \+ )[[:digit:]]+/\1'$VALUE_AFTER_OFFSET'/i' manager/build.gradle.kts
+          sed -i -E 's/(\$\(shell expr 10000 \+ \$\(KSU_GIT_VERSION\) \+ )[[:digit:]]+/\1'$VALUE_AFTER_OFFSET'/i' kernel/Makefile
+          sed -i -E 's/(\= 10000 \+ )[[:digit:]]+( \+ version_code)/\1'$VALUE_AFTER_OFFSET'\2/i' userspace/ksud/build.rs
+
+          git add manager/build.gradle.kts kernel/Makefile userspace/ksud/build.rs
+          git commit -m "treewide: Offset build version to match with upstream"
+          git push origin $GITHUB_REF_NAME
+
+  build-ksud:
+    needs: update-version
     strategy:
       matrix:
         include:
