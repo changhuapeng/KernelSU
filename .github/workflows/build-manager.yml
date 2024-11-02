@@ -16,7 +16,49 @@ on:
   workflow_dispatch:
 
 jobs:
+  update-signature:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout current branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Update unofficial build signature
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --all
+
+          if [ ! -z "${{ secrets.KEYSTORE }}" ]; then
+              KEYSTORE_PASSWORD='${{ secrets.KEYSTORE_PASSWORD }}'
+              KEY_ALIAS='${{ secrets.KEY_ALIAS }}'
+              KEY_PASSWORD='${{ secrets.KEY_PASSWORD }}'
+              KEYSTORE_FILE='key.jks'
+              echo ${{ secrets.KEYSTORE }} | base64 -d > key.jks
+
+              keytool -exportcert -file cert.crt \
+                -keystore key.jks \
+                -storepass $KEYSTORE_PASSWORD \
+                -alias $KEY_ALIAS \
+                -keypass $KEY_PASSWORD
+
+              EXPECTED_SIZE=$(printf "0x%01x" $(stat -c %s cert.crt))
+              EXPECTED_HASH=$(sha256sum -b cert.crt | cut -d ' ' -f 1)
+
+              OLD_SIG_CODE="return check_v2_signature(path, EXPECTED_SIZE, EXPECTED_HASH);"
+              REPLACE_CODE="return (check_v2_signature(path, EXPECTED_SIZE, EXPECTED_HASH)\n"$'\t'"|| check_v2_signature(path, $EXPECTED_SIZE, \"$EXPECTED_HASH\")\n"$'\t'");"
+
+              sed -i "s/"$'\t'"$OLD_SIG_CODE/"$'\t'"$REPLACE_CODE/" kernel/apk_sign.c
+
+              git add kernel/apk_sign.c
+              git commit -m "kernel: Allow signature for unofficial manager"
+              git push origin $GITHUB_REF_NAME
+          fi
+
   build-ksud:
+    needs: update-signature
     strategy:
       matrix:
         include:
@@ -38,7 +80,7 @@ jobs:
         working-directory: ./manager
 
     steps:
-      - name: Checkout current branch
+      - name: Checkout updated branch
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
