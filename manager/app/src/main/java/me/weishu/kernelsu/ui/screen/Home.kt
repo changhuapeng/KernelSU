@@ -26,6 +26,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.pm.PackageInfoCompat
@@ -401,14 +402,15 @@ private fun InfoCard() {
                 .fillMaxWidth()
                 .padding(start = 24.dp, top = 24.dp, end = 24.dp, bottom = 16.dp)
         ) {
-            val contents = StringBuilder()
             val uname = Os.uname()
 
             @Composable
-            fun InfoCardItem(label: String, content: String) {
-                contents.appendLine(label).appendLine(content).appendLine()
-                Text(text = label, style = MaterialTheme.typography.bodyLarge)
+            fun InfoCardItem(label: String, content: String, extraInfo: String? = null) {
+                Text(text = label, style = MaterialTheme.typography.labelLarge)
                 Text(text = content, style = MaterialTheme.typography.bodyMedium)
+                extraInfo?.let {
+                    Text(text = it, style = MaterialTheme.typography.bodySmall, fontStyle = FontStyle.Italic)
+                }
             }
 
             InfoCardItem(stringResource(R.string.home_kernel), uname.release)
@@ -417,7 +419,8 @@ private fun InfoCard() {
             val managerVersion = getManagerVersion(context)
             InfoCardItem(
                 stringResource(R.string.home_manager_version),
-                "${managerVersion.first} (${managerVersion.second})"
+                "${managerVersion.first} (${managerVersion.second})",
+                stringResource(R.string.home_manager_version_unofficial)
             )
 
             Spacer(Modifier.height(16.dp))
