@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -30,14 +31,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.Wysiwyg
+import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.outlined.PlayArrow
-import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.OpenInNewOff
+import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.Refresh
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
@@ -46,6 +47,7 @@ import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -153,7 +155,7 @@ fun ModuleScreen(navigator: DestinationsNavigator) {
                         onClick = { showDropdown = true },
                     ) {
                         Icon(
-                            imageVector = Icons.Filled.MoreVert,
+                            imageVector = Icons.AutoMirrored.Filled.Sort,
                             contentDescription = stringResource(id = R.string.settings)
                         )
 
@@ -573,7 +575,7 @@ fun ModuleItem(
                         fontWeight = FontWeight.SemiBold,
                         lineHeight = MaterialTheme.typography.bodySmall.lineHeight,
                         fontFamily = MaterialTheme.typography.titleMedium.fontFamily,
-                        textDecoration = textDecoration,
+                        textDecoration = textDecoration
                     )
 
                     Text(
@@ -593,14 +595,27 @@ fun ModuleItem(
                     )
                 }
 
-                Spacer(modifier = Modifier.weight(1f))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
+                Column(
+                    verticalArrangement = Arrangement.Top,
+                    horizontalAlignment = Alignment.End
                 ) {
+                    if (module.hasWebUi) {
+                        Icon(
+                            modifier = Modifier
+                                .size(20.dp)
+                                .offset(x = 6.dp, y = (-2).dp),
+                            imageVector = (
+                                if (!module.remove && module.enabled) Icons.AutoMirrored.Outlined.OpenInNew
+                                else Icons.Outlined.OpenInNewOff
+                            ),
+                            contentDescription = stringResource(id = R.string.open)
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.height(20.dp))
+                    }
+
                     Switch(
-                        enabled = !module.update,
+                        enabled = !module.remove,
                         checked = module.enabled,
                         onCheckedChange = onCheckChanged,
                         interactionSource = if (!module.hasWebUi) interactionSource else null
@@ -608,7 +623,7 @@ fun ModuleItem(
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
             Text(
                 text = module.description,
@@ -633,45 +648,18 @@ fun ModuleItem(
             ) {
 
                 if (module.hasActionScript) {
-                    FilledTonalButton(
+                    FilledTonalIconButton(
                         modifier = Modifier.defaultMinSize(52.dp, 32.dp),
                         enabled = !module.remove && module.enabled,
                         onClick = {
                             navigator.navigate(ExecuteModuleActionScreenDestination(module.dirId))
                             viewModel.markNeedRefresh()
-                        },
-                        contentPadding = ButtonDefaults.TextButtonContentPadding
+                        }
                     ) {
                         Icon(
                             modifier = Modifier.size(20.dp),
                             imageVector = Icons.Outlined.PlayArrow,
-                            contentDescription = null
-                        )
-                        if (!module.hasWebUi && updateUrl.isEmpty()) {
-                            Text(
-                                modifier = Modifier.padding(start = 7.dp),
-                                text = stringResource(R.string.action),
-                                fontFamily = MaterialTheme.typography.labelMedium.fontFamily,
-                                fontSize = MaterialTheme.typography.labelMedium.fontSize
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.weight(0.1f, true))
-                }
-
-                if (module.hasWebUi) {
-                    FilledTonalButton(
-                        modifier = Modifier.defaultMinSize(52.dp, 32.dp),
-                        enabled = !module.remove && module.enabled,
-                        onClick = { onClick(module) },
-                        interactionSource = interactionSource,
-                        contentPadding = ButtonDefaults.TextButtonContentPadding
-                    ) {
-                        Icon(
-                            modifier = Modifier.size(20.dp),
-                            imageVector = Icons.AutoMirrored.Outlined.Wysiwyg,
-                            contentDescription = null
+                            contentDescription = stringResource(id = R.string.action)
                         )
                         if (!module.hasActionScript && updateUrl.isEmpty()) {
                             Text(
@@ -687,7 +675,7 @@ fun ModuleItem(
                 Spacer(modifier = Modifier.weight(1f, true))
 
                 if (updateUrl.isNotEmpty()) {
-                    Button(
+                    FilledTonalButton(
                         modifier = Modifier.defaultMinSize(52.dp, 32.dp),
                         enabled = !module.remove,
                         onClick = { onUpdate(module) },
@@ -697,16 +685,14 @@ fun ModuleItem(
                         Icon(
                             modifier = Modifier.size(20.dp),
                             imageVector = Icons.Outlined.Download,
-                            contentDescription = null
+                            contentDescription = stringResource(id = R.string.module_update)
                         )
-                        if (!module.hasActionScript || !module.hasWebUi) {
-                            Text(
-                                modifier = Modifier.padding(start = 7.dp),
-                                fontFamily = MaterialTheme.typography.labelMedium.fontFamily,
-                                fontSize = MaterialTheme.typography.labelMedium.fontSize,
-                                text = stringResource(R.string.module_update)
-                            )
-                        }
+                        Text(
+                            modifier = Modifier.padding(start = 4.dp),
+                            fontFamily = MaterialTheme.typography.labelMedium.fontFamily,
+                            fontSize = MaterialTheme.typography.labelMedium.fontSize,
+                            text = stringResource(R.string.module_update)
+                        )
                     }
 
                     Spacer(modifier = Modifier.weight(0.1f, true))
@@ -721,23 +707,21 @@ fun ModuleItem(
                         Icon(
                             modifier = Modifier.size(20.dp),
                             imageVector = Icons.Outlined.Delete,
-                            contentDescription = null,
+                            contentDescription = stringResource(id = R.string.uninstall)
                         )
                     } else {
                         Icon(
                             modifier = Modifier.size(20.dp).rotate(180f),
                             imageVector = Icons.Outlined.Refresh,
-                            contentDescription = null,
+                            contentDescription = stringResource(id = R.string.restore)
                         )
                     }
-                    if (!module.hasActionScript && !module.hasWebUi && updateUrl.isEmpty()) {
-                        Text(
-                            modifier = Modifier.padding(start = 7.dp),
-                            fontFamily = MaterialTheme.typography.labelMedium.fontFamily,
-                            fontSize = MaterialTheme.typography.labelMedium.fontSize,
-                            text = stringResource(if (!module.remove) R.string.uninstall else R.string.restore)
-                        )
-                    }
+                    Text(
+                        modifier = Modifier.padding(start = 4.dp),
+                        fontFamily = MaterialTheme.typography.labelMedium.fontFamily,
+                        fontSize = MaterialTheme.typography.labelMedium.fontSize,
+                        text = stringResource(if (!module.remove) R.string.uninstall else R.string.restore)
+                    )
                 }
             }
         }
